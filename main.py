@@ -11,21 +11,21 @@
 # Input:
 #   - No user input
 # Output:
-#   - Voltages to pins _, _, and _ to power a multi-colored LED based on the state of the
+#   - Voltages to pins 7, 8, and 9 to power a multi-colored LED based on the state of the
 #     device
-#   - Voltage to pin _ to fire a relay if the object is classified as a human or vehicle.
+#   - Voltage to pin 0 to fire a relay if the object is classified as a human or vehicle.
 # Assumptions:
 #   - It is assumed that the user has a trained neural network, preferably a convolutional
 #     neural network (CNN).
 #   - It is assumed that the OpenMV has a motion and distance sensor connected to it for
 #     interface.
-#   - It is assumed that the OpenMv is connected to other necessary components for the
+#   - It is assumed that the OpenMV is connected to other necessary components for the
 #     Smart Exit Device.
 
 
 ################# INITIALIZATION #################
 # Import libraries
-import sensor, image, time
+import sensor, image, time, pyb
 
 # Initialize OpenMV
 sensor.reset()
@@ -34,6 +34,10 @@ sensor.set_framesize(sensor.QVGA)
 sensor.skip_frames(time = 2000)
 
 # Initialize pins
+relay = pyb.Pin("P0", pyb.Pin.OUT_PP)
+green = pyb.Pin("P7", pyb.Pin.OUT_PP)
+blue = pyb.Pin("P8", pyb.Pin.OUT_PP)
+red = pyb.Pin("P9", pyb.Pin.OUT_PP)
 
 # Initialize distance sensor
 
@@ -44,25 +48,33 @@ clock = time.clock()
 
 
 ################# FUNCTION DEFINITIONS #################
-# states()
-# description: states of the device
-# input: current state of device
-# output: new state of device
-def states(curState):
-    newState = ' '
-    if(curState == IDLE):
-        newState =
-    elif(curState == CENTER):
-        newState =
-    elif(curState == CLASSIFY):
-        newState =
-    elif(curState == OPEN):
-        newState =
-    elif(curState == OFF):
-        usys.exit('Turning System Off...')
-    else:
-        curState = 'ERROR'
-    return newState
+# updateLED()
+# description: updates the color of the LED
+# input: current color of LED
+# output: new color of LED
+def updateLED():
+    curState = getState()
+    if (curState == IDLE)
+        green.low()
+        blue.low()
+        red.low()
+    elif (curState == CENTER)
+        green.low()
+        blue.toggle()
+        red.low()
+    elif (curState == CLASSIFY)
+        green.low()
+        blue.high()
+        red.low()
+    elif (curState == FAIL)
+        green.low()
+        blue.low()
+        red.high()
+    elif (curState == OPEN)
+        green.high()
+        blue.low()
+        red.low()
+
 
 ################# MAIN #################
 def main():
