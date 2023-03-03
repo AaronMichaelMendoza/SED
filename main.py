@@ -48,21 +48,21 @@ clock = time.clock()
 # description: states of the device
 # input: current state of device
 # output: new state of device
-def states(x):
-    state = ' '
-    if(x == IDLE):
-        state =
-    elif(x == CENTER):
-        state =
-    elif(x == CLASSIFY):
-        state =
-    elif(x == OPEN):
-        state =
-    elif(x == OFF):
+def states(curState):
+    newState = ' '
+    if(curState == IDLE):
+        newState =
+    elif(curState == CENTER):
+        newState =
+    elif(curState == CLASSIFY):
+        newState =
+    elif(curState == OPEN):
+        newState =
+    elif(curState == OFF):
         usys.exit('Turning System Off...')
     else:
-        x = 'ERROR'
-    return game_state
+        curState = 'ERROR'
+    return newState
 
 ################# MAIN #################
 def main():
