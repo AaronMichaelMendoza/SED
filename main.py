@@ -49,11 +49,11 @@ clock = time.clock()
 
 ################# FUNCTION DEFINITIONS #################
 # updateLED()
-# description: updates the color of the LED
+# description: updates the color of the LED based on the
+#              current state of the device
 # input: current color of LED
 # output: new color of LED
-def updateLED():
-    curState = getState()
+def updateLED(curState):
     if (curState == IDLE)
         green.low()
         blue.low()
@@ -77,9 +77,41 @@ def updateLED():
 
 
 ################# MAIN #################
-def main():
-    while(True):
-        clock.tick()
-        img = sensor.snapshot()
-        print(clock.fps())
-main()
+while(True):
+    clock.tick()
+    img = sensor.snapshot()
+    print(clock.fps())
+
+    # Initialize device
+    curState = IDLE
+    updateLED(curState)
+
+    # State machine
+    if (curState == IDLE and #motion detected):
+        curState = CENTER
+        updateLED(curState)
+    elif (curState == CENTER):
+        if (#object in DS line):
+            if (#object in range):
+                curState = CLASSIFY
+                updateLED(curState)
+        else:
+            if (#no motion detected):
+                curState = IDLE
+                updateLED(curState)
+    elif (curState == CLASSIFY):
+        # classify()
+        if (#person or vehicle):
+            curState == OPEN
+        else
+            curState == FAIL
+        updateLED(curState)
+    elif (curState == OPEN):
+        #wait
+    elif (curState == FAIL):
+        if (#no object in DS line):
+            curState = IDLE
+        else
+            curState = CENTER
+        updateLED(curState)
+
