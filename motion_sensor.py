@@ -12,13 +12,17 @@ sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA)
 sensor.skip_frames(time = 2000)
 
-motion_pin = Pin("P0", Pin.IN, Pin.PULL_DOWN)
+motion_pin = Pin("P3", Pin.IN, Pin.PULL_DOWN)
 
 clock = time.clock()
 
-def detect_motion():
-    if (motion_pin.value() == 1):
+def basic_motion_test():
+    if (motion_pin.value()) == 1)
         print('MOTION DETECTED')
 
-while(True):
-    detect_motion()
+def motion_interrupt_callback():
+    print('MOTION DETECTED ON RISING EDGE')
+    return true
+
+def detect_motion():
+    ExtInt(motion_pin, ExtInt.IRQ_RISING, Pin.PULL_DOWN, motion_interrupt_callback)

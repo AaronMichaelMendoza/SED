@@ -2,7 +2,7 @@
 # Description:   This script is the main loop that the OpenMV camera runs when powered.
 # Authors:       C. Jackson, J. Markle, C. McCarver, A. Mendoza, A. White, H. Williams
 # Date Created:  3/2/2023
-# Last Modified: 3/3/2023
+# Last Modified: 3/15/2023
 
 # Data Abstraction:
 #   - Import libraries, most notably the TensorFlowLite library
@@ -10,10 +10,12 @@
 #   - Initialize variables and sensors as necessary
 # Input:
 #   - No user input
+#   - Input in Pin 3 is from the motion sensor
+#   - Pins 4 and 5 are SCL and SDA from distance sensor respectively
 # Output:
-#   - Voltages to pins 7, 8, and 9 to power a multi-colored LED based on the state of the
+#   - Pins 7, 8, and 9 to power a multi-colored LED based on the state of the
 #     device
-#   - Voltage to pin 0 to fire a relay if the object is classified as a human or vehicle.
+#   - Pin 0 fires a relay if the object is classified as a human or vehicle.
 # Assumptions:
 #   - It is assumed that the user has a trained neural network, preferably a convolutional
 #     neural network (CNN).
@@ -26,6 +28,7 @@
 ################# INITIALIZATION #################
 # Import libraries
 import sensor, image, time, pyb
+import motion_sensor
 
 # Initialize OpenMV
 sensor.reset()
@@ -87,7 +90,7 @@ while(True):
     updateLED(curState)
 
     # State machine
-    if (curState == IDLE and #motion detected):
+    if (curState == IDLE and motion_sensor.detect_motion()):
         curState = CENTER
         updateLED(curState)
     elif (curState == CENTER):
