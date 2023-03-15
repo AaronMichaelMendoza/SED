@@ -17,7 +17,7 @@ motion_pin = Pin("P3", Pin.IN, Pin.PULL_DOWN)
 clock = time.clock()
 
 def basic_motion_test():
-    if (motion_pin.value()) == 1)
+    if (motion_pin.value()) == 1):
         print('MOTION DETECTED')
 
 def motion_interrupt_callback():
