@@ -2,7 +2,7 @@
 # Description:   This script is the main loop that the OpenMV camera runs when powered.
 # Authors:       C. Jackson, J. Markle, C. McCarver, A. Mendoza, A. White, H. Williams
 # Date Created:  3/2/2023
-# Last Modified: 3/15/2023
+# Last Modified: 3/17/2023
 
 # Data Abstraction:
 #   - Import libraries, most notably the TensorFlowLite library
@@ -49,7 +49,6 @@ red = pyb.Pin("P9", pyb.Pin.OUT_PP)
 # Initialize clock
 clock = time.clock()
 
-
 ################# FUNCTION DEFINITIONS #################
 # updateLED()
 # description: updates the color of the LED based on the
@@ -78,43 +77,41 @@ def updateLED(curState):
         blue.low()
         red.low()
 
-
 ################# MAIN #################
-while(True):
-    clock.tick()
-    img = sensor.snapshot()
-    print(clock.fps())
-
+def main():
     # Initialize device
     curState = IDLE
-    updateLED(curState)
+    while(True):
+        clock.tick()
+        img = sensor.snapshot()
+        print(clock.fps())
 
-    # State machine
-    if (curState == IDLE and motion_sensor.detect_motion()):
-        curState = CENTER
+        # Set LED color
         updateLED(curState)
-    elif (curState == CENTER):
-        if (#object in DS line):
-            if (#object in range):
-                curState = CLASSIFY
-                updateLED(curState)
-        else:
-            if (#no motion detected):
+
+        # State machine
+        print('Current State:', current_state)
+        if (curState == IDLE):
+            if (motion_sensor.detect_motion()):
+                curState = CENTER
+        elif (curState == CENTER):
+            if (#object in DS line):
+                if (#object in range):
+                    curState = CLASSIFY
+            else:
+                if (#no motion detected):
+                    curState = IDLE
+        elif (curState == CLASSIFY):
+            # classify()
+            if (#person or vehicle):
+                curState == OPEN
+            else
+                curState == FAIL
+        elif (curState == OPEN):
+            #wait
+        elif (curState == FAIL):
+            if (#no object in DS line):
                 curState = IDLE
-                updateLED(curState)
-    elif (curState == CLASSIFY):
-        # classify()
-        if (#person or vehicle):
-            curState == OPEN
-        else
-            curState == FAIL
-        updateLED(curState)
-    elif (curState == OPEN):
-        #wait
-    elif (curState == FAIL):
-        if (#no object in DS line):
-            curState = IDLE
-        else
-            curState = CENTER
-        updateLED(curState)
+            else
+                curState = CENTER
 
