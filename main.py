@@ -42,6 +42,11 @@ green = Pin('P7', Pin.OUT_PP)
 yellow = Pin('P8', Pin.OUT_PP)
 red = Pin('P9', Pin.OUT_PP)
 
+# Initialize ADC
+adc = pyb.ADC(pyb.Pin("P6"))        # create an ADC on pin P6
+buf = bytearray(1)                 # create a buffer to store the samples
+
+
 # Initialize distance sensor
 
 # Initialize motion sensor
@@ -99,6 +104,32 @@ def LED_test():
     red.high()
     pyb.delay(1000)
 
+def POT_test():
+    adc.read_timed(buf, 1)
+    pyb.delay(100)
+
+    for val in buf:
+        voltage_val = (val / 255.0) * 3.3
+        print(voltage_val)
+        if (voltage_val < 1.1):
+            red.high()
+            yellow.low()
+            green.low()
+        elif (voltage_val < 2.2):
+            red.low()
+            yellow.high()
+            green.low()
+        elif (voltage_val <= 3.3):
+           red.low()
+           yellow.low()
+           green.high()
+        else:
+            red.high()
+            yellow.high()
+            green.high()
+            print("ERROR")
+
+
 ################# MAIN #################
 #def main():
 #    # Initialize device
@@ -136,3 +167,6 @@ def LED_test():
 #                curState = IDLE
 #            else
 #                curState = CENTER
+
+while(True):
+    POT_test()
