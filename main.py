@@ -82,6 +82,10 @@ def updateLED(curState):
         yellow.low()
         red.low()
 
+# LED_test()
+# description: tests all three LEDs
+# input: void
+# output: void
 def LED_test():
     print("turning green on")
     green.high()
@@ -104,6 +108,10 @@ def LED_test():
     red.high()
     pyb.delay(1000)
 
+# POT_test()
+# description: tests potentiometer
+# input: void
+# output: void
 def POT_test():
     adc.read_timed(buf, 1)
     pyb.delay(100)
