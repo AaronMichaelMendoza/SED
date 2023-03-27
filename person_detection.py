@@ -1,23 +1,19 @@
-# File:          classify.py
-# Description:   This script holds everything necessary to classify an object.
-# Authors:       C. Jackson, J. Markle, C. McCarver, A. Mendoza, A. White, H. Williams
-# Date Created:  3/3/2023
-# Last Modified: 3/3/2023
+# Untitled - By: arw_2 - Sun Mar 26 2023
 
 import sensor, image, time, os, tf, pyb
 
-person_threshold = 0.7
+person_threshold = 0.65
 
 led = pyb.LED(1)
 led.off()
 
 sensor.reset()
-sensor.set_pixformat(sensor.RGB565)
+sensor.set_pixformat(sensor.GRAYSCALE)
 sensor.set_framesize(sensor.QQVGA)
 sensor.skip_frames(time = 2000)
 
-net = tf.load('SED-model.tflite')
-labels = ['nothing', 'car', 'person']
+net = tf.load('person_detection.tflite', True)
+labels = ['unsure', 'person', 'no_person']
 
 clock = time.clock()
 
@@ -44,4 +40,3 @@ while(True):
 
 
     print(clock.fps(), "fps")
-

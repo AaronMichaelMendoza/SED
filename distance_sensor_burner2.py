@@ -9,7 +9,7 @@ i2c = SoftI2C(scl=Pin('P4'),sda=Pin('P5'),freq=400000)
 #i2c.init(mode=I2C.CONTROLLER,baudrate=400000)
 
 data_ready = Pin('P3', Pin.IN)
-buff = bytearray(1)
+buff = bytearray(10)
 
 # Wait for i2c to be ready
 print('I2C Scan:', i2c.scan(), '\n')
@@ -32,24 +32,15 @@ print('\n')
 print('Sending setModePacket')
 i2c.start()
 buff[0] = 0x00
-i2c.write(buff)
-buff[0] = 0xE1
-i2c.write(buff)
-buff[0] = 0x00
-i2c.write(buff)
-buff[0] = 0x00
-i2c.write(buff)
-buff[0] = 0x00
-i2c.write(buff)
-buff[0] = 0x00
-i2c.write(buff)
-buff[0] = 0x5C
-i2c.write(buff)
-buff[0] = 0xD8
-i2c.write(buff)
-buff[0] = 0x26
-i2c.write(buff)
-buff[0] = 0x06
+buff[1] = 0xE1
+buff[2] = 0x00
+buff[3] = 0x00
+buff[4] = 0x00
+buff[5] = 0x00
+buff[6] = 0x5C
+buff[7] = 0xD8
+buff[8] = 0x26
+buff[9] = 0x06
 i2c.write(buff)
 i2c.stop()
 pyb.delay(20)
