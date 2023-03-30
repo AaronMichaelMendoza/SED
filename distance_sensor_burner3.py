@@ -1,24 +1,14 @@
-# Untitled - By: arw_2 - Wed Mar 22 2023
+# Untitled - By: arw_2 - Mon Mar 27 2023
 
 import sensor, image, time, pyb, machine
 
-from machine import SoftI2C, Pin
+from pyb import I2C, Pin
 
-i2c = SoftI2C(scl=Pin('P4'),sda=Pin('P5'),freq=400000)
-#i2c = I2C(scl=Pin('P4'),sda=Pin('P5'),freq=400000)
-#i2c.init(mode=I2C.CONTROLLER,baudrate=400000)
+i2c = I2C(2)
+i2c.init(mode=I2C.CONTROLLER, baudrate=400000)
 
-data_ready = Pin('P3', Pin.IN)
-buff = bytearray(10)
-
-# Wait for i2c to be ready
-#print('I2C Scan:', i2c.scan(), '\n')
-# print('Is 0x70 ready?', i2c.is_ready(0x70),'\n')
-
-## Check if data ACK bit is high
-#print('Data Ready?')
-#print(data_ready.value(),'\n')
-#
+print(i2c.scan())
+pyb.delay(100)
 
 print('Sending setModePacket')
 buff = bytearray(9)
@@ -31,16 +21,22 @@ buff[5] = 0x5C
 buff[6] = 0xD8
 buff[7] = 0x26
 buff[8] = 0x06
-i2c.start()
-num_acks = i2c.writeto(0x70,buff)
-i2c.stop()
-print('Number of ACKs:', num_acks)
+i2c.send(buff, 0x70, timeout=5000)
+pyb.delay(20)
+i2c.send(buff[1], 0x70, timeout=5000)
+i2c.send(buff[2], 0x70, timeout=5000)
+i2c.send(buff[3], 0x70, timeout=5000)
+i2c.send(buff[4], 0x70, timeout=5000)
+i2c.send(buff[5], 0x70, timeout=5000)
+i2c.send(buff[6], 0x70, timeout=5000)
+i2c.send(buff[7], 0x70, timeout=5000)
+i2c.send(buff[8], 0x70, timeout=5000)
 pyb.delay(20)
 
 #Clear serial port cache
 print('Clearing Serial Port Cache:')
 packet = bytearray(11)
-i2c.readfrom_into(0x70, packet)
+i2c.recv(packet, 0x70)
 for i in range(len(packet)):
     print(packet[i])
 
@@ -56,17 +52,14 @@ buff[5] = 0x55
 buff[6] = 0x10
 buff[7] = 0xCD
 buff[8] = 0x9A
-i2c.start()
-num_acks = i2c.writeto(0x70,buff)
-i2c.stop()
-print('Number of ACKs:', num_acks)
+i2c.send(buff, 0x70)
 pyb.delay(20)
 print('\n')
 
 #Clear serial port cache
 print('Clearing Serial Port Cache:')
 packet = bytearray(11)
-i2c.readfrom_into(0x70, packet)
+i2c.recv(packet, 0x70)
 for i in range(len(packet)):
     print(packet[i])
 
@@ -82,16 +75,14 @@ buff[5] = 0x4E
 buff[6] = 0x4A
 buff[7] = 0x15
 buff[8] = 0x1B
-i2c.start()
-num_acks = i2c.writeto(0x70,buff)
-i2c.stop()
+i2c.send(buff, 0x70)
 print('Number of ACKs:', num_acks)
 pyb.delay(20)
 
 #Clear serial port cache
 print('Clearing Serial Port Cache:')
 packet = bytearray(11)
-i2c.readfrom_into(0x70, packet)
+i2c.recv(packet, 0x70)
 for i in range(len(packet)):
     print(packet[i])
 
@@ -106,16 +97,14 @@ buff[5] = 0x5C
 buff[6] = 0xD8
 buff[7] = 0x26
 buff[8] = 0x06
-i2c.start()
-num_acks = i2c.writeto(0x70,buff)
-i2c.stop()
+i2c.send(buff, 0x70)
 print('Number of ACKs:', num_acks)
 pyb.delay(20)
 
 #Clear serial port cache
 print('Clearing Serial Port Cache:')
 packet = bytearray(11)
-i2c.readfrom_into(0x70, packet)
+i2c.recv(packet, 0x70)
 for i in range(len(packet)):
     print(packet[i])
 
@@ -130,15 +119,13 @@ buff[5] = 0x66
 buff[6] = 0x25
 buff[7] = 0x46
 buff[8] = 0x93
-i2c.start()
-num_acks = i2c.writeto(0x70,buff)
-i2c.stop()
+i2c.send(buff, 0x70)
 print('Number of ACKs:', num_acks)
 pyb.delay(20)
 
 #Clear serial port cache
 print('Clearing Serial Port Cache:')
 packet = bytearray(23)
-i2c.readfrom_into(0x70, packet)
+i2c.recv(packet, 0x70)
 for i in range(len(packet)):
     print(packet[i])
