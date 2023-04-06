@@ -4,7 +4,7 @@
 # Date Created:  3/3/2023
 # Last Modified: 3/15/2023
 
-import sensor, image, time, pyb
+import sensor, image, time, pyb, machine
 from pyb import Pin
 from pyb import ExtInt
 
@@ -30,27 +30,21 @@ def motion_interrupt_callback(line):
 motion_interrupt = ExtInt(motion_pin, ExtInt.IRQ_RISING, Pin.PULL_DOWN, motion_interrupt_callback)
 #######################################################
 
-def motion_interrupt_test():
-    global motion_detected
-    global enable_sleep
+test = True
+
+while(test):
     motion_detected = False
-    enable_sleep = False
+    enable_sleep = True
     if (enable_sleep):
         machine.sleep()
         time.sleep_ms(1)
         if (motion_detected):
             rtc.wakeup(None)
-            print("Motion detected!!!!")
+            print("Motion detected. Waking up!!!!")
             motion_detected = False
+            test = False
     else:
         img = sensor.snapshot()
         if (motion_detected):
             print("Motion detected!!!!")
             motion_detected = False
-
-while(True):
-    motion_detected = False
-    img = sensor.snapshot()
-    if (motion_detected):
-        print("Motion detected!!!!")
-        motion_detected = False
