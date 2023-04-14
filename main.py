@@ -15,7 +15,6 @@
 # Output:
 #   - Pins 7, 8, and 9 to power three LEDs based on the state of the
 #     device
-#   - Pin 0 fires a relay if the object is classified as a human or vehicle.
 # Assumptions:
 #   - It is assumed that the user has the team's custom trained neural network on the SD card.
 #   - It is assumed that the OpenMV has a motion and distance sensor connected to it for
@@ -38,7 +37,7 @@ sensor.set_windowing((240, 240))       # Set 240x240 window.
 sensor.skip_frames(time = 2000)
 
 # Initialize pins
-relay = Pin('P0', Pin.OUT_PP)
+config_switch = Pin('P1', Pin.IN, Pin.PULL_DOWN)
 green = Pin('P7', Pin.OUT_PP)
 yellow = Pin('P8', Pin.OUT_PP)
 red = Pin('P9', Pin.OUT_PP)
@@ -76,8 +75,6 @@ motion_pin = Pin("P3", Pin.IN, Pin.PULL_DOWN)
 
 # Initialize clock
 clock = time.clock()
-
-# Constants and other variables
 
 ################# FUNCTION DEFINITIONS #################
 # updateLED()
@@ -185,13 +182,49 @@ def read_distance():
     pyb.delay(10)
     return distance
 
+# read_config_voltage()
+# description: reads config voltage
+# input: void
+# output: voltage from pot
+def read_config_voltage():
+    global config_voltage
+    adc.read_timed(buf, 1)
+    pyb.delay(100)
+
+    for val in buf:
+        config_voltage = (val / 255.0) * 3.3
+    return config_voltage
+
 ################# MAIN #################
 def main():
     # Initialize device
     global curState = IDLE
     objInRangeCount = 0
+    noObjInRangeCount = 0
     noMotionCount = 0
-    ## PUT ALL DISTANCE CONFIG STUFF HERE
+
+    REDUNDANCY_CHECK = 5
+    MIN_DIST_CONST = 0.3
+    MAX_DIST_CONST = 39.7
+    MAX_V_IN = 3.3
+
+    # Configure min and max distance
+    start_time = time.time()
+    cur_time = time.time()
+    end_time = time.time() + 20
+    while (cur_time < end_time):
+        red.high()
+        green.high()
+        yellow.high()
+        config_voltage = read_config_voltage()
+        if (config_switch.value() == 0):
+            min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
+        elif:
+            max_distance = min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
+    red.low()
+    green.low()
+    yellow.low()
+
     while(True):
         # Set LED color
         updateLED(curState)
@@ -204,15 +237,15 @@ def main():
         elif (curState == CENTER):
             distance = read_distance()
             if (distance != -2):
-                if (#object in range):
+                if (min_distance <= distance and distance <= max_distance):
                     objInRangeCount += 1
-                if (objInRangeCount == 5):
+                if (objInRangeCount == REDUNDANCY_CHECK):
                     curState = CLASSIFY
                     objInRangeCount = 0
             else:
                 if (motion_pin.value() != 1):
                     noMotionCount += 1
-                    if (noMotionCount == 5):
+                    if (noMotionCount == REDUNDANCY_CHECK):
                         curState = IDLE
                         noMotionCount = 0
         elif (curState == CLASSIFY):
@@ -223,10 +256,14 @@ def main():
             else
                 curState == FAIL
         elif (curState == OPEN):
-            #wait
+            pyd.delay(5000)
+            curState = IDLE
         elif (curState == FAIL):
-            if (#no object in DS line):
-                curState = IDLE
+            distance = read_distance()
+            if (distance == -2):
+                noObjInRangeCount += 1
+                if (noObjInRangeCount == REDUNDANCY_CHECK):
+                    curState = IDLE
             else
                 curState = CENTER
 
