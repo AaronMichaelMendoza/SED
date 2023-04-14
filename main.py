@@ -5,20 +5,19 @@
 # Last Modified: 4/14/2023
 
 # Data Abstraction:
-#   - Import libraries, most notably the TensorFlowLite library
+#   - Import libraries
 #   - Upload trained neural network from SD card
 #   - Initialize variables and sensors as necessary
 # Input:
 #   - No user input
 #   - Input in Pin 3 is from the motion sensor
-#   - Pins 4 and 5 are SCL and SDA from distance sensor respectively
+#   - Pins 4 and 5 are TX and RX from distance sensor respectively
 # Output:
 #   - Pins 7, 8, and 9 to power three LEDs based on the state of the
 #     device
 #   - Pin 0 fires a relay if the object is classified as a human or vehicle.
 # Assumptions:
-#   - It is assumed that the user has a trained neural network, preferably a convolutional
-#     neural network (CNN).
+#   - It is assumed that the user has the team's custom trained neural network on the SD card.
 #   - It is assumed that the OpenMV has a motion and distance sensor connected to it for
 #     interface.
 #   - It is assumed that the OpenMV is connected to other necessary components for the
@@ -27,14 +26,15 @@
 
 ################# INITIALIZATION #################
 # Import libraries
-import sensor, image, time, pyb
+import sensor, image, time, pyb, os, tf, uos, gc
 from pyb import Pin
-from pyb import ExtInt
+from machine import UART
 
 # Initialize OpenMV
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA)
+sensor.set_windowing((240, 240))       # Set 240x240 window.
 sensor.skip_frames(time = 2000)
 
 # Initialize pins
@@ -47,17 +47,32 @@ red = Pin('P9', Pin.OUT_PP)
 adc = pyb.ADC(pyb.Pin("P6"))        # create an ADC on pin P6
 buf = bytearray(1)                 # create a buffer to store the samples
 
-
 # Initialize distance sensor
+CM_TO_FT = 0.0328084
+
+uart = UART(3, 115200)
+uart.init(115200, bits=8, parity=None, stop=1)
+
+packet = bytearray(1)
+packet[0] = 0x42
+uart.write(packet)
+packet[0] = 0x57
+uart.write(packet)
+packet[0] = 0x02
+uart.write(packet)
+packet[0] = 0x00
+uart.write(packet)
+packet[0] = 0x00
+uart.write(packet)
+packet[0] = 0x00
+uart.write(packet)
+packet[0] = 0x01
+uart.write(packet)
+packet[0] = 0x06
+uart.write(packet)
 
 # Initialize motion sensor
 motion_pin = Pin("P3", Pin.IN, Pin.PULL_DOWN)
-def motion_interrupt_callback(line):
-    print('In callback')
-    global motion_detected
-    motion_detected = True
-    pass
-motion_interrupt = ExtInt(motion_pin, ExtInt.IRQ_RISING, Pin.PULL_DOWN, motion_interrupt_callback)
 
 # Initialize clock
 clock = time.clock()
@@ -153,29 +168,43 @@ def basic_motion_test():
     if (motion_pin.value()== 1):
         print('MOTION DETECTED')
 
+# read_distance()
+# description: reads distance
+# input: void
+# output: -2 if data is invalid, distance in feet if data is valid
+def read_distance():
+    global distance = -2
+    if(uart.any()):
+        bytes = uart.read()
+        if(len(bytes) == 9):
+            #print('Distance (ft):', ((bytes[3]*256) + (bytes[2])) * CM_TO_FT)
+            #print('Signal Strength:', (bytes[5]*256) + (bytes[4]))
+            distance = ((bytes[3]*256) + (bytes[2])) * CM_TO_FT
+    pyb.delay(10)
+    return distance
+
 ################# MAIN #################
 def main():
     # Initialize device
     global curState = IDLE
+    ## PUT ALL DISTANCE CONFIG STUFF HERE
     while(True):
-        clock.tick()
-        img = sensor.snapshot()
-        print(clock.fps())
-
         # Set LED color
         updateLED(curState)
 
         # State machine
         print('Current State:', current_state)
         if (curState == IDLE):
-            if (motion_detected):
+            if (motion_pin.value() == 1):
                 curState = CENTER
+                motion_detected = false
         elif (curState == CENTER):
-            if (#object in DS line):
+            distance = read_distance()
+            if (distance != -2):
                 if (#object in range):
                     curState = CLASSIFY
             else:
-                if (#no motion detected):
+                if (motion_pin.value() != 1):
                     curState = IDLE
         elif (curState == CLASSIFY):
             # classify()
