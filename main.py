@@ -77,6 +77,8 @@ motion_pin = Pin("P3", Pin.IN, Pin.PULL_DOWN)
 # Initialize clock
 clock = time.clock()
 
+# Constants and other variables
+
 ################# FUNCTION DEFINITIONS #################
 # updateLED()
 # description: updates the color of the LED based on the
@@ -187,6 +189,8 @@ def read_distance():
 def main():
     # Initialize device
     global curState = IDLE
+    objInRangeCount = 0
+    noMotionCount = 0
     ## PUT ALL DISTANCE CONFIG STUFF HERE
     while(True):
         # Set LED color
@@ -197,16 +201,22 @@ def main():
         if (curState == IDLE):
             if (motion_pin.value() == 1):
                 curState = CENTER
-                motion_detected = false
         elif (curState == CENTER):
             distance = read_distance()
             if (distance != -2):
                 if (#object in range):
+                    objInRangeCount += 1
+                if (objInRangeCount == 5):
                     curState = CLASSIFY
+                    objInRangeCount = 0
             else:
                 if (motion_pin.value() != 1):
-                    curState = IDLE
+                    noMotionCount += 1
+                    if (noMotionCount == 5):
+                        curState = IDLE
+                        noMotionCount = 0
         elif (curState == CLASSIFY):
+            img = sensor.snapshot()
             # classify()
             if (#person or vehicle):
                 curState == OPEN
