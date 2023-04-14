@@ -30,7 +30,7 @@ def motion_interrupt_callback(line):
 motion_interrupt = ExtInt(motion_pin, ExtInt.IRQ_RISING, Pin.PULL_DOWN, motion_interrupt_callback)
 #######################################################
 
-test = True
+test = False
 
 while(test):
     motion_detected = False
