@@ -6,13 +6,13 @@
 
 import sensor, image, time, os, tf, pyb
 
-person_threshold = 0.7
+person_threshold = 0.9
 
 led = pyb.LED(1)
 led.off()
 
 sensor.reset()
-sensor.set_pixformat(sensor.RGB565)
+sensor.set_pixformat(sensor.GRAYSCALE)
 sensor.set_framesize(sensor.QQVGA)
 sensor.skip_frames(time = 2000)
 
@@ -32,8 +32,13 @@ while(True):
             print("%s = %f" % (labels[i], obj.output()[i]))
 
         # Highlight identified object
-        img.draw_rectangle(obj.rect())
-        img.draw_string(obj.x()+3, obj.y()-1, labels[obj.output().index(max(obj.output()))], mono_space=False)
+        img.draw_rectangle(obj.rect(), color=[0,0,0])
+        final_label = labels[obj.output().index(max(obj.output()))]
+        idx = labels.index(final_label)
+        if obj.output()[idx] < person_threshold:
+            final_label = 'nothing'
+
+        img.draw_string(obj.x()+3, obj.y()-1, final_label, color=[0,0,0], mono_space=False)
 
         # Light LED if person detected
         idx = labels.index('person')
@@ -44,4 +49,5 @@ while(True):
 
 
     print(clock.fps(), "fps")
+    print(net.ram())
 
