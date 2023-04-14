@@ -2,7 +2,7 @@
 # Description:   This script is the main loop that the OpenMV camera runs when powered.
 # Authors:       C. Jackson, J. Markle, C. McCarver, A. Mendoza, A. White, H. Williams
 # Date Created:  3/2/2023
-# Last Modified: 3/20/2023
+# Last Modified: 4/14/2023
 
 # Data Abstraction:
 #   - Import libraries, most notably the TensorFlowLite library
@@ -29,6 +29,7 @@
 # Import libraries
 import sensor, image, time, pyb
 from pyb import Pin
+from pyb import ExtInt
 
 # Initialize OpenMV
 sensor.reset()
@@ -50,6 +51,13 @@ buf = bytearray(1)                 # create a buffer to store the samples
 # Initialize distance sensor
 
 # Initialize motion sensor
+motion_pin = Pin("P3", Pin.IN, Pin.PULL_DOWN)
+def motion_interrupt_callback(line):
+    print('In callback')
+    global motion_detected
+    motion_detected = True
+    pass
+motion_interrupt = ExtInt(motion_pin, ExtInt.IRQ_RISING, Pin.PULL_DOWN, motion_interrupt_callback)
 
 # Initialize clock
 clock = time.clock()
@@ -137,44 +145,49 @@ def POT_test():
             green.high()
             print("ERROR")
 
+# basic_motion_test()
+# description: tests motion sensor
+# input: void
+# output: void
+def basic_motion_test():
+    if (motion_pin.value()== 1):
+        print('MOTION DETECTED')
 
 ################# MAIN #################
-#def main():
-#    # Initialize device
-#    curState = IDLE
-#    while(True):
-#        clock.tick()
-#        img = sensor.snapshot()
-#       print(clock.fps())
-#
-#        # Set LED color
-#        updateLED(curState)
-#
-#        # State machine
-#        print('Current State:', current_state)
-#        if (curState == IDLE):
-#            if (motion_sensor.detect_motion()):
-#                curState = CENTER
-#        elif (curState == CENTER):
-#            if (#object in DS line):
-#                if (#object in range):
-#                    curState = CLASSIFY
-#            else:
-#                if (#no motion detected):
-#                    curState = IDLE
-#        elif (curState == CLASSIFY):
-#            # classify()
-#            if (#person or vehicle):
-#                curState == OPEN
-#            else
-#                curState == FAIL
-#        elif (curState == OPEN):
-#            #wait
-#        elif (curState == FAIL):
-#            if (#no object in DS line):
-#                curState = IDLE
-#            else
-#                curState = CENTER
+def main():
+    # Initialize device
+    global curState = IDLE
+    while(True):
+        clock.tick()
+        img = sensor.snapshot()
+        print(clock.fps())
 
-while(True):
-    POT_test()
+        # Set LED color
+        updateLED(curState)
+
+        # State machine
+        print('Current State:', current_state)
+        if (curState == IDLE):
+            if (motion_detected):
+                curState = CENTER
+        elif (curState == CENTER):
+            if (#object in DS line):
+                if (#object in range):
+                    curState = CLASSIFY
+            else:
+                if (#no motion detected):
+                    curState = IDLE
+        elif (curState == CLASSIFY):
+            # classify()
+            if (#person or vehicle):
+                curState == OPEN
+            else
+                curState == FAIL
+        elif (curState == OPEN):
+            #wait
+        elif (curState == FAIL):
+            if (#no object in DS line):
+                curState = IDLE
+            else
+                curState = CENTER
+
