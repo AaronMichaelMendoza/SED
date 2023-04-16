@@ -42,6 +42,23 @@ green = Pin('P7', Pin.OUT_PP)
 yellow = Pin('P8', Pin.OUT_PP)
 red = Pin('P9', Pin.OUT_PP)
 
+# Load CNN Model
+CONFIDENCE_THRESHOLD = 0.5
+net = None
+labels = None
+try:
+    # load the model, alloc the model file on the heap if we have at least 64K free after loading
+    net = tf.load("trained.tflite", load_to_fb=uos.stat('trained.tflite')[6] > (gc.mem_free() - (64*1024)))
+except Exception as e:
+    print(e)
+    raise Exception('Failed to load "trained.tflite", did you copy the .tflite and labels.txt file onto the mass-storage device? (' + str(e) + ')')
+
+try:
+    labels = [line.rstrip('\n') for line in open("labels.txt")]
+except Exception as e:
+    raise Exception('Failed to load "labels.txt", did you copy the .tflite and labels.txt file onto the mass-storage device? (' + str(e) + ')')
+
+
 # Initialize ADC
 adc = pyb.ADC(pyb.Pin("P6"))        # create an ADC on pin P6
 buf = bytearray(1)                 # create a buffer to store the samples
@@ -250,8 +267,16 @@ def main():
                         noMotionCount = 0
         elif (curState == CLASSIFY):
             img = sensor.snapshot()
-            # classify()
-            if (#person or vehicle):
+            for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
+                predictions_list = list(zip(labels, obj.output()))
+
+            # Person detected:
+            if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
+                print('Person Detected with', predictions_list[1][1], 'confidence')
+                curState == OPEN
+            # Vehicle detected:
+            elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
+                print('Vehicle Detected with', predictions_list[1][1], 'confidence')
                 curState == OPEN
             else
                 curState == FAIL
