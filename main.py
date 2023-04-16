@@ -13,8 +13,7 @@
 #   - Input in Pin 3 is from the motion sensor
 #   - Pins 4 and 5 are TX and RX from distance sensor respectively
 # Output:
-#   - Pins 7, 8, and 9 to power three LEDs based on the state of the
-#     device
+#   - Pins 7, 8, and 9 to power three LEDs based on the state of the device
 # Assumptions:
 #   - It is assumed that the user has the team's custom trained neural network on the SD card.
 #   - It is assumed that the OpenMV has a motion and distance sensor connected to it for
@@ -224,11 +223,14 @@ def main():
     MIN_DIST_CONST = 0.3
     MAX_DIST_CONST = 39.7
     MAX_V_IN = 3.3
+    CONFIG_TIME = 20
+    BASELINE_TIME = 5
+    BASELINE_DISTANCE = 0
 
     # Configure min and max distance
     start_time = time.time()
     cur_time = time.time()
-    end_time = time.time() + 20
+    end_time = time.time() + CONFIG_TIME
     while (cur_time < end_time):
         red.high()
         green.high()
@@ -242,6 +244,26 @@ def main():
     green.low()
     yellow.low()
 
+    # Get baseline distance
+    start_time = time.time()
+    cur_time = time.time()
+    end_time = time.time() + BASELINE_TIME
+    count = 0
+    while (cur_time < end_time):
+        # LED control
+        if (cur_time < end_time - 2):
+            red.high()
+        elif (cur_time < end_time < 4):
+            red.low()
+            yellow.high()
+        else:
+            yellow.low()
+            gree.high()
+        distance = read_distance()
+        BASELINE_DISTANCE += distance
+        count += 1
+    BASELINE_DISTANCE = BASELINE_DISTANCE / count
+
     while(True):
         # Set LED color
         updateLED(curState)
@@ -253,7 +275,7 @@ def main():
                 curState = CENTER
         elif (curState == CENTER):
             distance = read_distance()
-            if (distance != -2):
+            if (distance != -2 and distance >= BASELINE_DISTANCE - 0.5 and distance <= BASELINE_DISTANCE + 0.5):
                 if (min_distance <= distance and distance <= max_distance):
                     objInRangeCount += 1
                 if (objInRangeCount == REDUNDANCY_CHECK):
