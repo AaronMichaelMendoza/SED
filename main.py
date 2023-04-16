@@ -270,16 +270,16 @@ def main():
             for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
                 predictions_list = list(zip(labels, obj.output()))
 
-            # Person detected:
-            if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
-                print('Person Detected with', predictions_list[1][1], 'confidence')
-                curState == OPEN
-            # Vehicle detected:
-            elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
-                print('Vehicle Detected with', predictions_list[1][1], 'confidence')
-                curState == OPEN
-            else
-                curState == FAIL
+                # Person detected:
+                if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
+                    print('Person Detected with', predictions_list[1][1], 'confidence')
+                    curState == OPEN
+                # Vehicle detected:
+                elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
+                    print('Vehicle Detected with', predictions_list[1][1], 'confidence')
+                    curState == OPEN
+                else
+                    curState == FAIL
         elif (curState == OPEN):
             pyd.delay(5000)
             curState = IDLE
