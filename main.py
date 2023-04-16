@@ -40,9 +40,11 @@ config_switch = Pin('P1', Pin.IN, Pin.PULL_DOWN)
 green = Pin('P7', Pin.OUT_PP)
 yellow = Pin('P8', Pin.OUT_PP)
 red = Pin('P9', Pin.OUT_PP)
+led_counter = 0
+LED_MAX = 100
 
 # Load CNN Model
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.3
 net = None
 labels = None
 try:
@@ -99,23 +101,30 @@ clock = time.clock()
 # input: current color of LED
 # output: new color of LED
 def updateLED(curState):
-    if (curState == IDLE):
+    global led_counter
+    global LED_MAX
+    if (curState == 'IDLE'):
         green.high()
         yellow.low()
         red.low()
-    elif (curState == CENTER):
+    elif (curState == 'CENTER'):
         green.low()
-        yellow.toggle()
+        if (yellow.value() == 1) and (led_counter >= LED_MAX):
+            yellow.low()
+            led_counter = 0;
+        if (yellow.value() == 0) and (led_counter >= LED_MAX):
+            yellow.high()
+            led_counter = 0;
         red.low()
-    elif (curState == CLASSIFY):
+    elif (curState == 'CLASSIFY'):
         green.low()
         yellow.high()
         red.low()
-    elif (curState == FAIL):
+    elif (curState == 'FAIL'):
         green.low()
         yellow.low()
         red.high()
-    elif (curState == OPEN):
+    elif (curState == 'OPEN'):
         green.high()
         yellow.low()
         red.low()
@@ -180,7 +189,7 @@ def POT_test():
 # input: void
 # output: void
 def basic_motion_test():
-    if (motion_pin.value()== 1):
+    if (motion_pin.value()== 0) and (motion_pin.value() == 1):
         print('MOTION DETECTED')
 
 # read_distance()
@@ -188,13 +197,22 @@ def basic_motion_test():
 # input: void
 # output: -2 if data is invalid, distance in feet if data is valid
 def read_distance():
-    global distance = -2
-    if(uart.any()):
-        bytes = uart.read()
-        if(len(bytes) == 9):
-            #print('Distance (ft):', ((bytes[3]*256) + (bytes[2])) * CM_TO_FT)
-            #print('Signal Strength:', (bytes[5]*256) + (bytes[4]))
-            distance = ((bytes[3]*256) + (bytes[2])) * CM_TO_FT
+    global distance
+
+    MAX_UART_ATTEMPTS = 20
+    num_attempts = 0
+
+    distance = -2
+    while(num_attempts < MAX_UART_ATTEMPTS):
+        if(uart.any()):
+            bytes = uart.read()
+            for i in range(len(bytes)-3):
+                if(bytes[i] == 0x59) and (bytes[i+1] == 0x59):
+                    distance = ((bytes[i+3]*256) + (bytes[i+2])) * CM_TO_FT
+                    break
+        else:
+            num_attempts += 1
+            #print('UART not available')
     pyb.delay(10)
     return distance
 
@@ -211,10 +229,14 @@ def read_config_voltage():
         config_voltage = (val / 255.0) * 3.3
     return config_voltage
 
+
 ################# MAIN #################
 def main():
     # Initialize device
-    global curState = IDLE
+    global curState
+    global led_counter
+    global CONFIDENCE_THRESHOLD
+    curState = 'IDLE'
     objInRangeCount = 0
     noObjInRangeCount = 0
     noMotionCount = 0
@@ -226,6 +248,7 @@ def main():
     CONFIG_TIME = 20
     BASELINE_TIME = 5
     BASELINE_DISTANCE = 0
+    BASELINE_THRESHOLD = 0.5
 
     # Configure min and max distance
     start_time = time.time()
@@ -238,8 +261,14 @@ def main():
         config_voltage = read_config_voltage()
         if (config_switch.value() == 0):
             min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
-        elif:
+            print('Minimum Distance:', min_distance)
+        else:
             max_distance = min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
+            print('Maximum Distance:', max_distance)
+        cur_time = time.time()
+        break
+    max_distance = 40;
+    min_distance = 0;
     red.low()
     green.low()
     yellow.low()
@@ -249,6 +278,7 @@ def main():
     cur_time = time.time()
     end_time = time.time() + BASELINE_TIME
     count = 0
+    print('Setting Baseline Distance')
     while (cur_time < end_time):
         # LED control
         if (cur_time < end_time - 2):
@@ -258,36 +288,42 @@ def main():
             yellow.high()
         else:
             yellow.low()
-            gree.high()
+            green.high()
         distance = read_distance()
         BASELINE_DISTANCE += distance
         count += 1
+        cur_time = time.time()
+        break
     BASELINE_DISTANCE = BASELINE_DISTANCE / count
+    BASELINE_DISTANCE = 4;
+    print('Baseline Distance =', BASELINE_DISTANCE)
 
     while(True):
         # Set LED color
         updateLED(curState)
+        led_counter += 1
 
         # State machine
-        print('Current State:', current_state)
-        if (curState == IDLE):
+        print('Current State:', curState)
+        if (curState == 'IDLE'):
             if (motion_pin.value() == 1):
-                curState = CENTER
-        elif (curState == CENTER):
+                curState = 'CENTER'
+        elif (curState == 'CENTER'):
             distance = read_distance()
-            if (distance != -2 and distance >= BASELINE_DISTANCE - 0.5 and distance <= BASELINE_DISTANCE + 0.5):
+            print('Center State Distance Value:', distance)
+            if (distance != -2 and (distance <= BASELINE_DISTANCE - BASELINE_THRESHOLD or distance >= BASELINE_DISTANCE + BASELINE_THRESHOLD)):
                 if (min_distance <= distance and distance <= max_distance):
                     objInRangeCount += 1
                 if (objInRangeCount == REDUNDANCY_CHECK):
-                    curState = CLASSIFY
+                    curState = 'CLASSIFY'
                     objInRangeCount = 0
             else:
                 if (motion_pin.value() != 1):
                     noMotionCount += 1
                     if (noMotionCount == REDUNDANCY_CHECK):
-                        curState = IDLE
+                        curState = 'IDLE'
                         noMotionCount = 0
-        elif (curState == CLASSIFY):
+        elif (curState == 'CLASSIFY'):
             img = sensor.snapshot()
             for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
                 predictions_list = list(zip(labels, obj.output()))
@@ -295,22 +331,25 @@ def main():
                 # Person detected:
                 if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
                     print('Person Detected with', predictions_list[1][1], 'confidence')
-                    curState == OPEN
+                    curState = 'OPEN'
                 # Vehicle detected:
                 elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
                     print('Vehicle Detected with', predictions_list[1][1], 'confidence')
-                    curState == OPEN
-                else
-                    curState == FAIL
-        elif (curState == OPEN):
-            pyd.delay(5000)
-            curState = IDLE
-        elif (curState == FAIL):
+                    curState = 'OPEN'
+                else:
+                    curState = 'FAIL'
+
+        elif (curState == 'OPEN'):
+            pyb.delay(5000)
+            curState = 'IDLE'
+        elif (curState == 'FAIL'):
             distance = read_distance()
-            if (distance == -2):
+            if (distance != -2) and ((distance >= BASELINE_DISTANCE - BASELINE_THRESHOLD) and (distance <= BASELINE_DISTANCE + BASELINE_THRESHOLD)):
                 noObjInRangeCount += 1
                 if (noObjInRangeCount == REDUNDANCY_CHECK):
-                    curState = IDLE
-            else
-                curState = CENTER
+                    curState = 'IDLE'
+            else:
+                curState = 'CENTER'
+        pyb.delay(100)
 
+main()
