@@ -2,7 +2,7 @@
 # Description:   This script is the main loop that the OpenMV camera runs when powered.
 # Authors:       C. Jackson, J. Markle, C. McCarver, A. Mendoza, A. White, H. Williams
 # Date Created:  3/2/2023
-# Last Modified: 4/14/2023
+# Last Modified: 4/19/2023
 
 # Data Abstraction:
 #   - Import libraries
@@ -235,6 +235,259 @@ def read_config_voltage():
         config_voltage = (val / 255.0) * 3.3
     return config_voltage
 
+# fire_relay_test()
+# description: tests if the relay can be fired
+# input: void
+# output: fires relay 10 times
+def fire_relay_test():
+    MAX_COUNT = 10
+    for i in range(MAX_COUNT):
+        relay.high()
+        pyb.delay(1000)
+        relay.low()
+        pyb.delay(1000)
+
+# config_range_test()
+# description: tests the configurability of the range
+# input: void
+# output: whether or not distance read is in range
+def config_range_test():
+    CONFIG_TIME = 10
+    start_time = time.time()
+    cur_time = time.time()
+    end_time = time.time() + CONFIG_TIME
+    while (cur_time < end_time):
+        config_voltage = read_config_voltage()
+        if (config_switch.value() == 0):
+            min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
+            print('Minimum Distance:', min_distance)
+        else:
+            max_distance = min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
+            print('Maximum Distance:', max_distance)
+        cur_time = time.time()
+    print('FINAL MINIMUM DISTANCE:', min_distance)
+    print('FINAL MAXIMUM DISTANCE:', max_distance)
+    while(true):
+        distance = read_distance()
+        if distance < min_distance:
+            print('Below minimum distance! Cur dist: ', distance, 'Min dist: ', min_distance)
+        elif distance > max_distance:
+            print('Above maximum distance! Cur dist: ', distance, 'Max dist: ', min_distance)
+        else:
+            print('Cur dist: ', distance)
+
+# processsing_time_test()
+# description: runs main() a certain number of times and prints out the time it takes to go from
+#              IDLE to PASS/FAIL
+# input: void
+# output: elapsed time in ms from IDLE to PASS/FAIL
+def processing_time_test():
+    global curState
+    global led_counter
+    global CONFIDENCE_THRESHOLD
+    curState = 'IDLE'
+    objInRangeCount = 0
+    noObjInRangeCount = 0
+    noMotionCount = 0
+    curTest = 0
+
+    NUM_TESTS = 10
+    REDUNDANCY_CENTER_CHECK = 50
+    REDUNDANCY_MOTION_CHECK = 50
+    MIN_DIST_CONST = 0.3
+    MAX_DIST_CONST = 39.7
+    MAX_V_IN = 3.3
+    CONFIG_TIME = 10
+    BASELINE_TIME = 5
+    BASELINE_DISTANCE = 0
+    BASELINE_THRESHOLD = 0.5
+
+    # Configure min and max distance
+    max_distance = 40;
+    min_distance = 0;
+
+    # Get baseline distance
+    BASELINE_DISTANCE = 4;
+    #print('Baseline Distance =', BASELINE_DISTANCE)
+
+    while(curTest < NUM_TESTS):
+        # Set LED color
+        updateLED(curState)
+
+        # State machine
+        #print('Current State:', curState)
+        if (curState == 'IDLE'):
+            start = pyb.millis() # Get starting time
+            if (motion_pin.value() == 1):
+                curState = 'CENTER'
+        elif (curState == 'CENTER'):
+            distance = read_distance()
+            #print('Center State Distance Value:', distance)
+            if (distance != -2 and (distance <= BASELINE_DISTANCE - BASELINE_THRESHOLD or distance >= BASELINE_DISTANCE + BASELINE_THRESHOLD)):
+                if (min_distance <= distance and distance <= max_distance):
+                    objInRangeCount += 1
+                if (objInRangeCount == REDUNDANCY_CENTER_CHECK):
+                    curState = 'CLASSIFY'
+                    objInRangeCount = 0
+            else:
+                if (motion_pin.value() != 1):
+                    noMotionCount += 1
+                    if (noMotionCount == REDUNDANCY_MOTION_CHECK):
+                        curState = 'IDLE'
+                        noMotionCount = 0
+        elif (curState == 'CLASSIFY'):
+            img = sensor.snapshot()
+            for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
+                predictions_list = list(zip(labels, obj.output()))
+
+                # Person detected:
+                if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
+                    #print('Person Detected with', predictions_list[1][1], 'confidence')
+                    curState = 'OPEN'
+                # Vehicle detected:
+                elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
+                    #print('Vehicle Detected with', predictions_list[1][1], 'confidence')
+                    curState = 'OPEN'
+                else:
+                    curState = 'FAIL'
+        elif (curState == 'OPEN' or curState == 'FAIL'):
+            curTest += 1
+            print('Processing time for test ', curTest, ': ', pyb.elapsed_millis(start))
+            pyb.delay(3000)
+            curState = 'IDLE'
+        pyb.delay(100)
+
+# classify_test()
+# description: tells whether or not a vehicle/person is identified in the image
+# input: void
+# output: if object is person, vehicle, or nothing with accuracy
+def classify_test():
+    flag = False
+    while(True):
+        img = sensor.snapshot()
+        for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
+            predictions_list = list(zip(labels, obj.output()))
+            # Person detected:
+            if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
+                print('Person Detected with', predictions_list[1][1], 'confidence')
+                flag = True
+            # Vehicle detected:
+            elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
+                print('Vehicle Detected with', predictions_list[1][1], 'confidence')
+                flag = True
+            if flag:
+                relay.high()
+                pyb.delay(2000)
+                relay.low()
+                flag = false
+
+# optimal_classification_test()
+# description: tests a certain number of times within a 5-20 ft range to see if accuracy
+#              is above 70% where accuracy is defined as accurate classifications/total tests
+# input: void
+# output: if object is person, vehicle, or nothing with accuracy
+def optimal_classification_test():
+    global curState
+    global led_counter
+    global CONFIDENCE_THRESHOLD
+    curState = 'IDLE'
+    objInRangeCount = 0
+    noObjInRangeCount = 0
+    noMotionCount = 0
+    curTest = 0
+    person = False
+    person_count = 0
+    vehicle = False
+    vehicle_count = 0
+    nothing = False
+    nothing_count = 0
+
+    DESIRED_OBJECT = 'PERSON'
+    NUM_TESTS = 10
+    REDUNDANCY_CENTER_CHECK = 50
+    REDUNDANCY_MOTION_CHECK = 50
+    MIN_DIST_CONST = 0.3
+    MAX_DIST_CONST = 39.7
+    MAX_V_IN = 3.3
+    CONFIG_TIME = 20
+    BASELINE_TIME = 5
+    BASELINE_DISTANCE = 0
+    BASELINE_THRESHOLD = 0.5
+
+    # Configure min and max distance.
+    # "Optimal" was defined as 5-20 feet by the client
+    max_distance = 20;
+    min_distance = 5;
+
+    # Get baseline distance
+    BASELINE_DISTANCE = 4;
+    #print('Baseline Distance =', BASELINE_DISTANCE)
+
+    while(curTest < NUM_TESTS):
+        # Set LED color
+        updateLED(curState)
+
+        # State machine
+        #print('Current State:', curState)
+        if (curState == 'IDLE'):
+            if (motion_pin.value() == 1):
+                curState = 'CENTER'
+        elif (curState == 'CENTER'):
+            distance = read_distance()
+            #print('Center State Distance Value:', distance)
+            if (distance != -2 and (distance <= BASELINE_DISTANCE - BASELINE_THRESHOLD or distance >= BASELINE_DISTANCE + BASELINE_THRESHOLD)):
+                if (min_distance <= distance and distance <= max_distance):
+                    objInRangeCount += 1
+                if (objInRangeCount == REDUNDANCY_CENTER_CHECK):
+                    curState = 'CLASSIFY'
+                    objInRangeCount = 0
+            else:
+                if (motion_pin.value() != 1):
+                    noMotionCount += 1
+                    if (noMotionCount == REDUNDANCY_MOTION_CHECK):
+                        curState = 'IDLE'
+                        noMotionCount = 0
+        elif (curState == 'CLASSIFY'):
+            img = sensor.snapshot()
+            for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
+                predictions_list = list(zip(labels, obj.output()))
+
+                # Person detected:
+                if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
+                    #print('Person Detected with', predictions_list[1][1], 'confidence')
+                    curState = 'OPEN'
+                    person = True
+                # Vehicle detected:
+                elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
+                    #print('Vehicle Detected with', predictions_list[1][1], 'confidence')
+                    curState = 'OPEN'
+                    person = True
+                else:
+                    curState = 'FAIL'
+                    nothing = True
+        elif (curState == 'OPEN' or curState == 'FAIL'):
+            curTest += 1
+            if person:
+                print('Person detected for test ', curTest, ': ')
+                person_count += 1
+            elif vehicle:
+                print('Vehicle detected for test ', curTest, ': ')
+                vehicle_count += 1
+            else:
+                print('Nothing detected for test ', curTest, ': ')
+                nothing_count += 1
+            pyb.delay(3000)
+            curState = 'IDLE'
+        pyb.delay(100)
+    print('Person detections: ', person_count)
+    print('Vehicle detections: ', vehicle_count)
+    print('Person detections: ', nothing_count)
+    if DESIRED_OBJECT = 'PERSON':
+        print('Classification accuracy: ', person_count/NUM_TESTS*100, '%')
+    elif DESIRED_OBJECT = 'VEHICLE':
+        print('Classification accuracy: ', vehicle_count/NUM_TESTS*100, '%')
+    else:
+        print('Classification accuracy: ', nothing_count/NUM_TESTS*100, '%')
 
 ################# MAIN #################
 def main():
@@ -344,7 +597,6 @@ def main():
                     curState = 'OPEN'
                 else:
                     curState = 'FAIL'
-
         elif (curState == 'OPEN'):
             pyb.delay(5000)
             curState = 'IDLE'
@@ -357,7 +609,6 @@ def main():
             else:
                 curState = 'CENTER'
             pyb.delay(1000)
-
         pyb.delay(100)
 
 main()
