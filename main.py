@@ -40,8 +40,9 @@ config_switch = Pin('P1', Pin.IN, Pin.PULL_DOWN)
 green = Pin('P7', Pin.OUT_PP)
 yellow = Pin('P8', Pin.OUT_PP)
 red = Pin('P9', Pin.OUT_PP)
+yellow_on = False
 led_counter = 0
-LED_MAX = 100
+LED_MAX = 2
 
 # Load CNN Model
 CONFIDENCE_THRESHOLD = 0.3
@@ -51,7 +52,7 @@ try:
     # load the model, alloc the model file on the heap if we have at least 64K free after loading
     net = tf.load("trained.tflite", load_to_fb=uos.stat('trained.tflite')[6] > (gc.mem_free() - (64*1024)))
 except Exception as e:
-    print(e)
+    #print(e)
     raise Exception('Failed to load "trained.tflite", did you copy the .tflite and labels.txt file onto the mass-storage device? (' + str(e) + ')')
 
 try:
@@ -103,18 +104,23 @@ clock = time.clock()
 def updateLED(curState):
     global led_counter
     global LED_MAX
+    global yellow_on
     if (curState == 'IDLE'):
-        green.high()
+        green.low()
         yellow.low()
         red.low()
     elif (curState == 'CENTER'):
         green.low()
-        if (yellow.value() == 1) and (led_counter >= LED_MAX):
+        if (yellow_on == True) and (led_counter >= LED_MAX):
             yellow.low()
+            yellow_on = False
             led_counter = 0;
-        if (yellow.value() == 0) and (led_counter >= LED_MAX):
+        elif (yellow_on == False) and (led_counter >= LED_MAX):
             yellow.high()
+            yellow_on = True
             led_counter = 0;
+        else:
+            led_counter += 1
         red.low()
     elif (curState == 'CLASSIFY'):
         green.low()
@@ -134,22 +140,22 @@ def updateLED(curState):
 # input: void
 # output: void
 def LED_test():
-    print("turning green on")
+    #print("turning green on")
     green.high()
     yellow.low()
     red.low()
     pyb.delay(1000)
-    print("turning yellow on")
+    #print("turning yellow on")
     green.low()
     yellow.high()
     red.low()
     pyb.delay(1000)
-    print("turning red on")
+    #print("turning red on")
     green.low()
     yellow.low()
     red.high()
     pyb.delay(1000)
-    print("turning all on")
+    #print("turning all on")
     green.high()
     yellow.high()
     red.high()
@@ -165,7 +171,7 @@ def POT_test():
 
     for val in buf:
         voltage_val = (val / 255.0) * 3.3
-        print(voltage_val)
+        #print(voltage_val)
         if (voltage_val < 1.1):
             red.high()
             yellow.low()
@@ -182,7 +188,7 @@ def POT_test():
             red.high()
             yellow.high()
             green.high()
-            print("ERROR")
+            #print("ERROR")
 
 # basic_motion_test()
 # description: tests motion sensor
@@ -241,7 +247,8 @@ def main():
     noObjInRangeCount = 0
     noMotionCount = 0
 
-    REDUNDANCY_CHECK = 5
+    REDUNDANCY_CENTER_CHECK = 50
+    REDUNDANCY_MOTION_CHECK = 50
     MIN_DIST_CONST = 0.3
     MAX_DIST_CONST = 39.7
     MAX_V_IN = 3.3
@@ -261,10 +268,10 @@ def main():
         config_voltage = read_config_voltage()
         if (config_switch.value() == 0):
             min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
-            print('Minimum Distance:', min_distance)
+            #print('Minimum Distance:', min_distance)
         else:
             max_distance = min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
-            print('Maximum Distance:', max_distance)
+            #print('Maximum Distance:', max_distance)
         cur_time = time.time()
         break
     max_distance = 40;
@@ -278,7 +285,7 @@ def main():
     cur_time = time.time()
     end_time = time.time() + BASELINE_TIME
     count = 0
-    print('Setting Baseline Distance')
+    #print('Setting Baseline Distance')
     while (cur_time < end_time):
         # LED control
         if (cur_time < end_time - 2):
@@ -296,31 +303,30 @@ def main():
         break
     BASELINE_DISTANCE = BASELINE_DISTANCE / count
     BASELINE_DISTANCE = 4;
-    print('Baseline Distance =', BASELINE_DISTANCE)
+    #print('Baseline Distance =', BASELINE_DISTANCE)
 
     while(True):
         # Set LED color
         updateLED(curState)
-        led_counter += 1
 
         # State machine
-        print('Current State:', curState)
+        #print('Current State:', curState)
         if (curState == 'IDLE'):
             if (motion_pin.value() == 1):
                 curState = 'CENTER'
         elif (curState == 'CENTER'):
             distance = read_distance()
-            print('Center State Distance Value:', distance)
+            #print('Center State Distance Value:', distance)
             if (distance != -2 and (distance <= BASELINE_DISTANCE - BASELINE_THRESHOLD or distance >= BASELINE_DISTANCE + BASELINE_THRESHOLD)):
                 if (min_distance <= distance and distance <= max_distance):
                     objInRangeCount += 1
-                if (objInRangeCount == REDUNDANCY_CHECK):
+                if (objInRangeCount == REDUNDANCY_CENTER_CHECK):
                     curState = 'CLASSIFY'
                     objInRangeCount = 0
             else:
                 if (motion_pin.value() != 1):
                     noMotionCount += 1
-                    if (noMotionCount == REDUNDANCY_CHECK):
+                    if (noMotionCount == REDUNDANCY_MOTION_CHECK):
                         curState = 'IDLE'
                         noMotionCount = 0
         elif (curState == 'CLASSIFY'):
@@ -330,11 +336,11 @@ def main():
 
                 # Person detected:
                 if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
-                    print('Person Detected with', predictions_list[1][1], 'confidence')
+                    #print('Person Detected with', predictions_list[1][1], 'confidence')
                     curState = 'OPEN'
                 # Vehicle detected:
                 elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
-                    print('Vehicle Detected with', predictions_list[1][1], 'confidence')
+                    #print('Vehicle Detected with', predictions_list[1][1], 'confidence')
                     curState = 'OPEN'
                 else:
                     curState = 'FAIL'
@@ -350,6 +356,8 @@ def main():
                     curState = 'IDLE'
             else:
                 curState = 'CENTER'
+            pyb.delay(1000)
+
         pyb.delay(100)
 
 main()
