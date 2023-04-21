@@ -195,8 +195,9 @@ def POT_test():
 # input: void
 # output: void
 def basic_motion_test():
-    if (motion_pin.value()== 0) and (motion_pin.value() == 1):
-        print('MOTION DETECTED')
+    while(True):
+        if (motion_pin.value()== 0) and (motion_pin.value() == 1):
+            print('MOTION DETECTED')
 
 # read_distance()
 # description: reads distance
@@ -482,9 +483,9 @@ def optimal_classification_test():
     print('Person detections: ', person_count)
     print('Vehicle detections: ', vehicle_count)
     print('Person detections: ', nothing_count)
-    if DESIRED_OBJECT = 'PERSON':
+    if DESIRED_OBJECT == 'PERSON':
         print('Classification accuracy: ', person_count/NUM_TESTS*100, '%')
-    elif DESIRED_OBJECT = 'VEHICLE':
+    elif DESIRED_OBJECT == 'VEHICLE':
         print('Classification accuracy: ', vehicle_count/NUM_TESTS*100, '%')
     else:
         print('Classification accuracy: ', nothing_count/NUM_TESTS*100, '%')
@@ -500,8 +501,8 @@ def main():
     noObjInRangeCount = 0
     noMotionCount = 0
 
-    REDUNDANCY_CENTER_CHECK = 50
-    REDUNDANCY_MOTION_CHECK = 50
+    REDUNDANCY_CENTER_CHECK = 10
+    REDUNDANCY_MOTION_CHECK = 10
     MIN_DIST_CONST = 0.3
     MAX_DIST_CONST = 39.7
     MAX_V_IN = 3.3
@@ -509,6 +510,8 @@ def main():
     BASELINE_TIME = 5
     BASELINE_DISTANCE = 0
     BASELINE_THRESHOLD = 0.5
+    OPEN_TIME = 2000
+    FAIL_TIME = 2000
 
     # Configure min and max distance
     start_time = time.time()
@@ -520,15 +523,15 @@ def main():
         yellow.high()
         config_voltage = read_config_voltage()
         if (config_switch.value() == 0):
-            min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
-            #print('Minimum Distance:', min_distance)
+            min_distance = MAX_DIST_CONST - (MAX_DIST_CONST - MIN_DIST_CONST) * config_voltage/MAX_V_IN
+            print('Minimum Distance:', min_distance)
         else:
-            max_distance = min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
-            #print('Maximum Distance:', max_distance)
+            max_distance = min_distance = MAX_DIST_CONST - (MAX_DIST_CONST - MIN_DIST_CONST) * config_voltage/MAX_V_IN
+            print('Maximum Distance:', max_distance)
         cur_time = time.time()
-        break
-    max_distance = 40;
-    min_distance = 0;
+        #break
+    #max_distance = 40;
+    #min_distance = 0;
     red.low()
     green.low()
     yellow.low()
@@ -538,7 +541,7 @@ def main():
     cur_time = time.time()
     end_time = time.time() + BASELINE_TIME
     count = 0
-    #print('Setting Baseline Distance')
+    print('Setting Baseline Distance')
     while (cur_time < end_time):
         # LED control
         if (cur_time < end_time - 2):
@@ -555,8 +558,8 @@ def main():
         cur_time = time.time()
         break
     BASELINE_DISTANCE = BASELINE_DISTANCE / count
-    BASELINE_DISTANCE = 4;
-    #print('Baseline Distance =', BASELINE_DISTANCE)
+    #BASELINE_DISTANCE = 4;
+    print('Baseline Distance =', BASELINE_DISTANCE)
 
     while(True):
         # Set LED color
@@ -598,7 +601,7 @@ def main():
                 else:
                     curState = 'FAIL'
         elif (curState == 'OPEN'):
-            pyb.delay(5000)
+            pyb.delay(OPEN_TIME)
             curState = 'IDLE'
         elif (curState == 'FAIL'):
             distance = read_distance()
@@ -608,7 +611,7 @@ def main():
                     curState = 'IDLE'
             else:
                 curState = 'CENTER'
-            pyb.delay(1000)
+            pyb.delay(FAIL_TIME)
         pyb.delay(100)
 
-main()
+basic_motion_test()
