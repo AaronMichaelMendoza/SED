@@ -114,13 +114,13 @@ def updateLED(curState):
         yellow.high()
         red.high()
     elif (curState == 'BASELINE'):
-        if (yellow_on == True) and (led_counter >= LED_MAX):
+        if (yellow_on == True) and (led_counter >= LED_MAX*10):
             yellow.low()
             red.low()
             green.low()
             yellow_on = False
             led_counter = 0;
-        elif (yellow_on == False) and (led_counter >= LED_MAX):
+        elif (yellow_on == False) and (led_counter >= LED_MAX*10):
             yellow.high()
             green.high()
             red.high()
@@ -531,7 +531,7 @@ def main():
     MAX_DIST_CONST = 39.7
     MAX_V_IN = 3.3
     CONFIG_TIME = 20
-    BASELINE_TIME = 5
+    BASELINE_READINGS = 5
     BASELINE_DISTANCE = 0
     BASELINE_THRESHOLD = 0.5
     OPEN_TIME = 2000
@@ -547,9 +547,7 @@ def main():
     config_range = False
     #while (cur_time < end_time):
     while(True):
-        red.high()
-        green.high()
-        yellow.high()
+        updateLED(curState)
         config_voltage = read_config_voltage()
         #print(config_switch.value())
         if (config_switch.value() == 0 and config_range == False):
@@ -577,24 +575,21 @@ def main():
     curState = 'BASELINE'
     #print('Setting Baseline Distance')
     while (True):
-        # LED control
-        if (cur_time < end_time - 2):
-            red.high()
-        elif (cur_time < end_time < 4):
-            red.low()
-            yellow.high()
-        else:
-            yellow.low()
-            green.high()
+        updateLED(curState)
         distance = read_distance()
-        BASELINE_DISTANCE += distance
-        count += 1
-        cur_time = time.time()
-        #0.break
-    BASELINE_DISTANCE = BASELINE_DISTANCE / count
+        if (distance != -2):
+            BASELINE_DISTANCE += distance
+            count += 1
+        else:
+            count = 0
+        if (count == BASELINE_READINGS):
+            break
+            
+    BASELINE_DISTANCE = BASELINE_DISTANCE / BASELINE_READINGS
     #BASELINE_DISTANCE = 4;
     print('Baseline Distance =', BASELINE_DISTANCE)
 
+    curState = 'IDLE'
     while(True):
         # Set LED color
         updateLED(curState)
@@ -663,5 +658,4 @@ def main():
             pyb.delay(FAIL_TIME)
         pyb.delay(100)
 
-while(True):
-    print(read_distance())
+main()
