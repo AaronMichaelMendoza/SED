@@ -2,7 +2,7 @@
 # Description:   This script is the main loop that the OpenMV camera runs when powered.
 # Authors:       C. Jackson, J. Markle, C. McCarver, A. Mendoza, A. White, H. Williams
 # Date Created:  3/2/2023
-# Last Modified: 4/19/2023
+# Last Modified: 4/21/2023
 
 # Data Abstraction:
 #   - Import libraries
@@ -37,9 +37,9 @@ sensor.skip_frames(time = 2000)
 
 # Initialize pins
 config_switch = Pin('P1', Pin.IN, Pin.PULL_DOWN)
-green = Pin('P9', Pin.OUT_PP)
-yellow = Pin('P8', Pin.OUT_PP)
 red = Pin('P7', Pin.OUT_PP)
+yellow = Pin('P8', Pin.OUT_PP)
+green = Pin('P9', Pin.OUT_PP)
 yellow_on = False
 led_counter = 0
 LED_MAX = 2
@@ -265,9 +265,9 @@ def read_config_voltage():
 def fire_relay_test():
     MAX_COUNT = 10
     for i in range(MAX_COUNT):
-        relay.high()
+        green.high()
         pyb.delay(1000)
-        relay.low()
+        green.low()
         pyb.delay(1000)
 
 # config_range_test()
@@ -330,7 +330,7 @@ def processing_time_test():
     min_distance = 0;
 
     # Get baseline distance
-    BASELINE_DISTANCE = 4;
+    BASELINE_DISTANCE = 0;
     #print('Baseline Distance =', BASELINE_DISTANCE)
 
     while(curTest < NUM_TESTS):
@@ -385,24 +385,39 @@ def processing_time_test():
 # input: void
 # output: if object is person, vehicle, or nothing with accuracy
 def classify_test():
+    NUM_PERSON_DETECTIONS = 3
+    NUM_VEHICLE_DETECTIONS = 3
     flag = False
     while(True):
         img = sensor.snapshot()
         for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
             predictions_list = list(zip(labels, obj.output()))
+
             # Person detected:
             if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
                 print('Person Detected with', predictions_list[1][1], 'confidence')
-                flag = True
+                person_count += 1
             # Vehicle detected:
             elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
                 print('Vehicle Detected with', predictions_list[1][1], 'confidence')
-                flag = True
-            if flag:
-                relay.high()
-                pyb.delay(2000)
-                relay.low()
-                flag = false
+                vehicle_count += 1
+
+        print('\nPerson count:', person_count, 'Vehicle count:', vehicle_count)
+        if person_count >= NUM_PERSON_DETECTIONS:
+            flag = True
+            print('Person classified')
+        elif vehicle_count >= NUM_VEHICLE_DETECTIONS:
+            flag = True
+            print('Vehicle classified')
+        else:
+            flag = False
+        person_count = 0
+        vehicle_count = 0
+        if flag:
+            green.high()
+            pyb.delay(2000)
+            green.low()
+            flag = false
 
 # optimal_classification_test()
 # description: tests a certain number of times within a 5-20 ft range to see if accuracy
@@ -545,7 +560,6 @@ def main():
     curState = 'CONFIG'
     start_config = False
     config_range = False
-    #while (cur_time < end_time):
     while(True):
         updateLED(curState)
         config_voltage = read_config_voltage()
@@ -562,8 +576,6 @@ def main():
             #print('Done configuring')
             break
 
-    #max_distance = 40;
-    #min_distance = 0;
     print('\nMaximum Distance:', max_distance)
     print('Minimum Distance:', min_distance)
     red.low()
@@ -584,10 +596,8 @@ def main():
             count = 0
         if (count == BASELINE_READINGS):
             break
-
     BASELINE_DISTANCE = BASELINE_DISTANCE / BASELINE_READINGS
-    #BASELINE_DISTANCE = 4;
-    print('Baseline Distance =', BASELINE_DISTANCE)
+    #print('Baseline Distance =', BASELINE_DISTANCE)
 
     curState = 'IDLE'
     while(True):
