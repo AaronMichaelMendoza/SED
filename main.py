@@ -130,11 +130,11 @@ def updateLED(curState):
             led_counter += 1
     elif (curState == 'CENTER'):
         green.low()
-        if (yellow_on == True) and (led_counter >= LED_MAX):
+        if (yellow_on == True) and (led_counter >= LED_MAX*10):
             yellow.low()
             yellow_on = False
             led_counter = 0;
-        elif (yellow_on == False) and (led_counter >= LED_MAX):
+        elif (yellow_on == False) and (led_counter >= LED_MAX*10):
             yellow.high()
             yellow_on = True
             led_counter = 0;
@@ -275,29 +275,34 @@ def fire_relay_test():
 # input: void
 # output: whether or not distance read is in range
 def config_range_test():
-    CONFIG_TIME = 10
-    start_time = time.time()
-    cur_time = time.time()
-    end_time = time.time() + CONFIG_TIME
-    while (cur_time < end_time):
+    MIN_DIST_CONST = 0.3
+    MAX_DIST_CONST = 39.7
+    MAX_V_IN = 3.3
+
+    curState = 'CONFIG'
+    start_config = False
+    config_range = False
+    while(True):
+        updateLED(curState)
         config_voltage = read_config_voltage()
-        if (config_switch.value() == 0):
-            min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
+        print(config_switch.value())
+        if (config_switch.value() == 0 and config_range == False):
+            min_distance = MAX_DIST_CONST - (MAX_DIST_CONST - MIN_DIST_CONST) * config_voltage/MAX_V_IN
             print('Minimum Distance:', min_distance)
-        else:
-            max_distance = min_distance = MIN_DIST_CONST + MAX_DIST_CONST/MAX_V_IN * config_voltage
+            start_config = True
+        elif (config_switch.value() == 1 and start_config == True):
+            max_distance = MAX_DIST_CONST - (MAX_DIST_CONST - MIN_DIST_CONST) * config_voltage/MAX_V_IN
             print('Maximum Distance:', max_distance)
-        cur_time = time.time()
-    print('FINAL MINIMUM DISTANCE:', min_distance)
-    print('FINAL MAXIMUM DISTANCE:', max_distance)
-    while(true):
-        distance = read_distance()
-        if distance < min_distance:
-            print('Below minimum distance! Cur dist: ', distance, 'Min dist: ', min_distance)
-        elif distance > max_distance:
-            print('Above maximum distance! Cur dist: ', distance, 'Max dist: ', min_distance)
-        else:
-            print('Cur dist: ', distance)
+            config_range = True
+        elif (config_switch.value() == 0 and config_range == True):
+            print('Done configuring')
+            break
+
+    print('\nMaximum Distance:', max_distance)
+    print('Minimum Distance:', min_distance)
+    red.low()
+    green.low()
+    yellow.low()
 
 # processsing_time_test()
 # description: runs main() a certain number of times and prints out the time it takes to go from
@@ -305,34 +310,38 @@ def config_range_test():
 # input: void
 # output: elapsed time in ms from IDLE to PASS/FAIL
 def processing_time_test():
+    # Initialize device
     global curState
     global led_counter
     global CONFIDENCE_THRESHOLD
     curState = 'IDLE'
+    person_count = 0
+    vehicle_count = 0
     objInRangeCount = 0
     noObjInRangeCount = 0
     noMotionCount = 0
     curTest = 0
+    max_distance = 40
+    min_distance = 0
+    BASELINE_DISTANCE = 0
 
-    NUM_TESTS = 10
-    REDUNDANCY_CENTER_CHECK = 50
-    REDUNDANCY_MOTION_CHECK = 50
+    REDUNDANCY_CENTER_CHECK = 10
+    REDUNDANCY_MOTION_CHECK = 10
     MIN_DIST_CONST = 0.3
     MAX_DIST_CONST = 39.7
     MAX_V_IN = 3.3
-    CONFIG_TIME = 10
-    BASELINE_TIME = 5
+    BASELINE_READINGS = 5
     BASELINE_DISTANCE = 0
     BASELINE_THRESHOLD = 0.5
+    TEST_TIME = 2000
+    NUM_PERSON_DETECTIONS = 3
+    NUM_VEHICLE_DETECTIONS = 3
+    NUM_ATTEMPTS = 5
+    NUM_TESTS = 10
 
-    # Configure min and max distance
-    max_distance = 40;
-    min_distance = 0;
 
-    # Get baseline distance
-    BASELINE_DISTANCE = 0;
-    #print('Baseline Distance =', BASELINE_DISTANCE)
-
+    curState = 'IDLE'
+    start = 0
     while(curTest < NUM_TESTS):
         # Set LED color
         updateLED(curState)
@@ -340,12 +349,13 @@ def processing_time_test():
         # State machine
         #print('Current State:', curState)
         if (curState == 'IDLE'):
-            start = pyb.millis() # Get starting time
+            start = pyb.millis()
             if (motion_pin.value() == 1):
                 curState = 'CENTER'
         elif (curState == 'CENTER'):
             distance = read_distance()
             #print('Center State Distance Value:', distance)
+            #print(curState)
             if (distance != -2 and (distance <= BASELINE_DISTANCE - BASELINE_THRESHOLD or distance >= BASELINE_DISTANCE + BASELINE_THRESHOLD)):
                 if (min_distance <= distance and distance <= max_distance):
                     objInRangeCount += 1
@@ -359,26 +369,43 @@ def processing_time_test():
                         curState = 'IDLE'
                         noMotionCount = 0
         elif (curState == 'CLASSIFY'):
-            img = sensor.snapshot()
-            for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
-                predictions_list = list(zip(labels, obj.output()))
+            for i in range(NUM_ATTEMPTS):
+                img = sensor.snapshot()
+                for obj in net.classify(img, min_scale=1.0, scale_mul=0.8, x_overlap=0.5, y_overlap=0.5):
+                    predictions_list = list(zip(labels, obj.output()))
 
-                # Person detected:
-                if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
-                    #print('Person Detected with', predictions_list[1][1], 'confidence')
-                    curState = 'OPEN'
-                # Vehicle detected:
-                elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
-                    #print('Vehicle Detected with', predictions_list[1][1], 'confidence')
-                    curState = 'OPEN'
-                else:
-                    curState = 'FAIL'
-        elif (curState == 'OPEN' or curState == 'FAIL'):
+                    # Person detected:
+                    if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
+                        #print('Person Detected with', predictions_list[1][1], 'confidence')
+                        person_count += 1
+                    # Vehicle detected:
+                    elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
+                        #print('Vehicle Detected with', predictions_list[1][1], 'confidence')
+                        vehicle_count += 1
+
+            #print('\nPerson count:', person_count, 'Vehicle count:', vehicle_count)
+            if person_count >= NUM_PERSON_DETECTIONS:
+                curState = 'OPEN'
+                #print('Person classified')
+            elif vehicle_count >= NUM_VEHICLE_DETECTIONS:
+                curState = 'OPEN'
+                #print('Vehicle classified')
+            else:
+                curState = 'FAIL'
+            #print(curState)
+            person_count = 0
+            vehicle_count = 0
+
+
+        elif (curState == 'OPEN') or (curState == 'FAIL'):
             curTest += 1
-            print('Processing time for test ', curTest, ': ', pyb.elapsed_millis(start))
-            pyb.delay(3000)
             curState = 'IDLE'
-        pyb.delay(100)
+            print('Processing time for test', curTest, ':', pyb.elapsed_millis(start)/1000.0)
+            pyb.delay(TEST_TIME)
+
+
+        pyb.delay(50)
+
 
 # classify_test()
 # description: tells whether or not a vehicle/person is identified in the image
@@ -545,7 +572,6 @@ def main():
     MIN_DIST_CONST = 0.3
     MAX_DIST_CONST = 39.7
     MAX_V_IN = 3.3
-    CONFIG_TIME = 20
     BASELINE_READINGS = 5
     BASELINE_DISTANCE = 0
     BASELINE_THRESHOLD = 0.5
@@ -666,6 +692,6 @@ def main():
             else:
                 curState = 'CENTER'
             pyb.delay(FAIL_TIME)
-        pyb.delay(100)
+        pyb.delay(50)
 
 main()
