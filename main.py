@@ -45,7 +45,7 @@ led_counter = 0
 LED_MAX = 2
 
 # Load CNN Model
-CONFIDENCE_THRESHOLD = 0.8
+CONFIDENCE_THRESHOLD = 0.72
 net = None
 labels = None
 try:
@@ -568,7 +568,7 @@ def main():
     noMotionCount = 0
 
     REDUNDANCY_CENTER_CHECK = 10
-    REDUNDANCY_MOTION_CHECK = 10
+    REDUNDANCY_MOTION_CHECK = 50
     MIN_DIST_CONST = 0.3
     MAX_DIST_CONST = 39.7
     MAX_V_IN = 3.3
@@ -615,6 +615,7 @@ def main():
     while (True):
         updateLED(curState)
         distance = read_distance()
+        print(distance)
         if (distance != -2):
             BASELINE_DISTANCE += distance
             count += 1
@@ -637,8 +638,8 @@ def main():
                 curState = 'CENTER'
         elif (curState == 'CENTER'):
             distance = read_distance()
-            print('Center State Distance Value:', distance)
-            print(curState)
+            #print('Center State Distance Value:', distance)
+            #print(curState)
             if (distance != -2 and (distance <= BASELINE_DISTANCE - BASELINE_THRESHOLD or distance >= BASELINE_DISTANCE + BASELINE_THRESHOLD)):
                 if (min_distance <= distance and distance <= max_distance):
                     objInRangeCount += 1
@@ -663,7 +664,7 @@ def main():
                         person_count += 1
                     # Vehicle detected:
                     elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
-                        print('Vehicle Detected with', predictions_list[1][1], 'confidence')
+                        print('Vehicle Detected with', predictions_list[2][1], 'confidence')
                         vehicle_count += 1
 
             print('\nPerson count:', person_count, 'Vehicle count:', vehicle_count)
@@ -693,5 +694,4 @@ def main():
                 curState = 'CENTER'
             pyb.delay(FAIL_TIME)
         pyb.delay(50)
-
 main()
