@@ -146,7 +146,7 @@ def updateLED(curState):
         yellow.high()
         red.low()
     elif (curState == 'FAIL'):
-        print('FAIL')
+        #print('FAIL')
         green.low()
         yellow.low()
         red.high()
@@ -592,18 +592,18 @@ def main():
         #print(config_switch.value())
         if (config_switch.value() == 0 and config_range == False):
             min_distance = MAX_DIST_CONST - (MAX_DIST_CONST - MIN_DIST_CONST) * config_voltage/MAX_V_IN
-            print('Minimum Distance:', min_distance)
+            #print('Minimum Distance:', min_distance)
             start_config = True
         elif (config_switch.value() == 1 and start_config == True):
             max_distance = MAX_DIST_CONST - (MAX_DIST_CONST - MIN_DIST_CONST) * config_voltage/MAX_V_IN
-            print('Maximum Distance:', max_distance)
+            #print('Maximum Distance:', max_distance)
             config_range = True
         elif (config_switch.value() == 0 and config_range == True):
             #print('Done configuring')
             break
 
-    print('\nMaximum Distance:', max_distance)
-    print('Minimum Distance:', min_distance)
+    #print('\nMaximum Distance:', max_distance)
+    #print('Minimum Distance:', min_distance)
     red.low()
     green.low()
     yellow.low()
@@ -615,7 +615,7 @@ def main():
     while (True):
         updateLED(curState)
         distance = read_distance()
-        print(distance)
+        #print(distance)
         if (distance != -2):
             BASELINE_DISTANCE += distance
             count += 1
@@ -660,23 +660,23 @@ def main():
 
                     # Person detected:
                     if (predictions_list[1][1] > CONFIDENCE_THRESHOLD):
-                        print('Person Detected with', predictions_list[1][1], 'confidence')
+                        #print('Person Detected with', predictions_list[1][1], 'confidence')
                         person_count += 1
                     # Vehicle detected:
                     elif (predictions_list[2][1] > CONFIDENCE_THRESHOLD):
-                        print('Vehicle Detected with', predictions_list[2][1], 'confidence')
+                        #print('Vehicle Detected with', predictions_list[2][1], 'confidence')
                         vehicle_count += 1
 
-            print('\nPerson count:', person_count, 'Vehicle count:', vehicle_count)
+            #print('\nPerson count:', person_count, 'Vehicle count:', vehicle_count)
             if person_count >= NUM_PERSON_DETECTIONS:
                 curState = 'OPEN'
-                print('Person classified')
+                #print('Person classified')
             elif vehicle_count >= NUM_VEHICLE_DETECTIONS:
                 curState = 'OPEN'
-                print('Vehicle classified')
+                #print('Vehicle classified')
             else:
                 curState = 'FAIL'
-            print(curState)
+            #print(curState)
             person_count = 0
             vehicle_count = 0
 
